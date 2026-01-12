@@ -1,0 +1,414 @@
+:root {
+    --primary: #0ea5e9; --primary-gradient: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    --bg-body: #f8fafc; --text-dark: #1e293b;
+}
+body {
+    font-family: 'Poppins', sans-serif;
+    
+    background: linear-gradient(180deg, #d0f0fd 0%, #ffffff 50%, #d0f0fd 100%);
+    
+    /* Wajib: Agar background memenuhi layar */
+    min-height: 100vh;
+    
+    /* Agar background diam saat discroll (paralax effect sederhana) */
+    background-attachment: fixed;
+    
+    color: var(--text-dark);
+    margin: 0;
+}
+
+/* --- VISIBILITY CONTROL (PENTING) --- */
+/* Default: Mobile First (Desktop Hidden) */
+.desktop-view { display: none !important; }
+.mobile-view { display: flex !important; }
+
+/* Breakpoint diubah ke 768px (Tablet Portrait) sesuai request */
+@media (min-width: 768px) {
+    /* Tampilkan elemen desktop */
+    .desktop-view { display: flex !important; }
+    
+    /* SEMBUNYIKAN elemen mobile (termasuk Navbar & FAB) secara paksa */
+    .mobile-view, 
+    .mobile-navbar, 
+    .fab-container { 
+        display: none !important; 
+    }
+    
+    /* Atur padding konten utama agar tidak tertutup navbar atas */
+    .main-content { padding-top: 100px !important; }
+    
+    /* Kembalikan ukuran font tanggal menjadi besar di desktop */
+    .date-big-num { font-size: 4.5rem !important; }
+    .date-text-group h3 { font-size: 1.5rem !important; }
+    .date-text-group span { font-size: 0.85rem !important; }
+}
+
+/* --- PERBAIKAN TAMPILAN TANGGAL (FIX BERANTAKAN) --- */
+.date-big-num {
+    font-size: 2.8rem !important; /* Diperkecil drastis agar muat */
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: -1px; /* Rapatkan huruf sedikit */
+}
+
+.date-text-group h3 {
+    font-size: 1.1rem !important;
+}
+.date-text-group span {
+    font-size: 0.75rem !important;
+}
+
+@media (min-width: 768px) {
+    .date-big-num { font-size: 4.5rem !important; }
+    .date-text-group h3 { font-size: 1.5rem !important; }
+}
+
+/* --- LOGIN --- */
+.login-container {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100vh;
+    background: linear-gradient(180deg, #e0f7fa 0%, #ffffff 100%); /* Gradasi Biru Langit */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999; /* Pastikan paling atas */
+    padding: 20px;
+}
+.login-card {
+    background: white;
+    width: 100%;
+    max-width: 400px; /* Batasi lebar agar tidak melar */
+    padding: 40px 30px;
+    border-radius: 25px;
+    box-shadow: 0 10px 40px rgba(0, 136, 204, 0.15); /* Bayangan Biru Halus */
+    text-align: center;
+}
+.login-logo {
+    width: 90px; 
+    height: auto;
+    object-fit: contain;
+    margin: 0 auto;
+}
+.custom-input {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px; /* Input agak kotak tapi tumpul dikit */
+    padding: 15px;
+    font-size: 0.95rem;
+    transition: 0.3s;
+}
+
+.custom-input:focus {
+    background-color: white;
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
+}
+
+.btn-gradient {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    border: none;
+    letter-spacing: 1px;
+    transition: transform 0.2s;
+}
+
+.btn-gradient:active {
+    transform: scale(0.98);
+}
+.login-wrapper { background: white; padding: 40px 30px; border-radius: 24px; box-shadow: 0 10px 40px rgba(14, 165, 233, 0.1); width: 90%; max-width: 400px; }
+.btn-gradient { background: var(--primary-gradient); border: none; }
+.text-gradient { background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+/* --- DESKTOP NAVBAR (Fixed) --- */
+.desktop-navbar {
+    position: fixed; top: 0; left: 0; width: 100%; height: 80px;
+    background: white; z-index: 1030;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.04);
+    border-bottom: 1px solid #f1f5f9;
+}
+.nav-container {
+    width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 20px;
+    display: flex; justify-content: space-between; align-items: center; height: 100%;
+}
+.nav-link-desk { text-decoration: none; color: #64748b; font-weight: 500; padding: 8px 16px; transition: 0.3s; }
+.nav-link-desk:hover, .nav-link-desk.active { color: var(--primary); }
+
+/* --- MOBILE BOTTOM NAV --- */
+.mobile-navbar {
+    display: block !important;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    width: 100% !important;
+    height: auto;
+    z-index: 1050;
+    pointer-events: none; /* Klik tembus di area kosong */
+    padding: 0; margin: 0;
+}
+
+.nav-curve-bg {
+    pointer-events: auto;
+    background: #ffffff; /* Pastikan putih bersih */
+    width: 100% !important;
+    height: 75px; /* Sedikit lebih tinggi biar lega */
+    
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+    /* Shadow halus ke atas agar terlihat mengambang */
+    box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.05);
+    
+    display: grid;
+    grid-template-columns: repeat(5, 1fr); 
+    align-items: center;
+    justify-items: center;
+    
+    padding-bottom: env(safe-area-inset-bottom);
+    position: absolute;
+    bottom: 0; left: 0;
+}
+
+/* STYLE ITEM MENU (ICON + TEXT) */
+.mob-item {
+    text-decoration: none;
+    /* Warna abu-abu medium agar terlihat di background putih */
+    color: #94a3b8; 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    transition: all 0.2s ease;
+}
+
+/* Ukuran Icon */
+.mob-item i {
+    font-size: 1.4rem; /* Icon diperbesar dikit */
+    margin-bottom: 4px;
+    color: #94a3b8; /* Warna default icon */
+}
+
+/* Ukuran Teks */
+.mob-item span {
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
+/* Saat Menu Aktif (Warna Biru) */
+.mob-item.active {
+    color: #0ea5e9;
+}
+.mob-item.active i {
+    color: #0ea5e9;
+    transform: translateY(-2px); /* Efek naik dikit */
+}
+
+/* TOMBOL TENGAH (FAB) - DIPERBAIKI POSISINYA */
+.fab-container {
+    pointer-events: auto;
+    position: absolute;
+    /* Posisi presisi agar "duduk" di tengah navbar */
+    bottom: calc(20px + env(safe-area-inset-bottom)); 
+    left: 50%;
+    transform: translateX(-50%);
+    
+    width: 70px; 
+    height: 70px;
+    /* Background abu-abu muda lingkaran luar untuk efek "potongan" */
+    background: var(--bg-body); 
+    border-radius: 50%;
+    padding: 6px;
+    z-index: 1060;
+    
+    display: flex; justify-content: center; align-items: center;
+    /* Shadow tombol */
+    box-shadow: 0 -5px 10px rgba(0,0,0,0.02); 
+}
+
+.fab-btn {
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    background: #ffffff;
+    /* Border biru yang estetik */
+    border: 3px solid #38bdf8; 
+    color: #0ea5e9;
+    font-size: 2rem; /* Icon sidik jari lebih besar */
+    display: flex; justify-content: center; align-items: center;
+    box-shadow: 0 8px 20px rgba(14, 165, 233, 0.3); /* Glow biru di bawah */
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.fab-btn:active {
+    transform: scale(0.95);
+}
+
+/* HIDE DI DESKTOP */
+@media (min-width: 768px) {
+    .mobile-navbar { display: none !important; }
+}
+
+/* --- STYLE HALAMAN PROFIL --- */
+.profile-avatar-lg {
+    width: 120px;
+    height: 120px;
+    background: #0088CC; /* Biru Kemendikdasmen */
+    border-radius: 50%;
+    font-size: 2.5rem;
+    border: 4px solid #e0f2fe; /* Ring luar */
+}
+
+/* --- GRADIENT LOADING SCREEN STYLE (UPDATED) --- */
+.loading-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100vh;
+    
+    /* 1. GUNAKAN GRADASI YANG SAMA DENGAN BODY */
+    background: linear-gradient(180deg, #d0f0fd 0%, #ffffff 50%, #d0f0fd 100%);
+    
+    z-index: 99999;
+    display: flex;
+    flex-direction: column; /* Susun vertikal: Kotak di atas, Teks di bawah */
+    align-items: center;
+    justify-content: center;
+    
+    /* Ubah warna teks umum jadi gelap agar terbaca di background terang */
+    color: var(--text-dark);
+    transition: opacity 0.5s ease-out;
+}
+
+/* Kotak pembungkus presisi 80x80 */
+.loading-box-center {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;     /* Vertikal tengah */
+    justify-content: center; /* Horizontal tengah */
+}
+
+/* Lingkaran Berputar */
+.spinner-ring {
+    position: absolute; /* Mengambang di dalam box */
+    top: 0; left: 0;
+    width: 100%; height: 100%; /* Penuhi box 80x80 */
+    
+    /* 2. UBAH WARNA SPINNER AGAR KONTRAS */
+    border: 4px solid rgba(14, 165, 233, 0.1); /* Ring abu-abu kebiruan samar */
+    border-top: 4px solid var(--primary);       /* Bagian berputar warna Biru Utama */
+    
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite; /* Sedikit lebih cepat */
+}
+
+/* Angka Persen */
+.loading-percentage {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--primary); /* Warna Biru agar menonjol */
+    z-index: 2; /* Pastikan di atas spinner */
+    /* Tidak perlu margin-top lagi karena sudah dicenter oleh Flexbox parent */
+}
+
+/* Teks "Memuat Data..." di bawah */
+.loading-text {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #64748b; /* Warna text-muted */
+    margin-top: 20px; /* Jarak dari kotak lingkaran */
+    letter-spacing: 0.5px;
+}
+
+/* Animasi Putar */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* --- CALENDAR STYLE --- */
+.calendar-day {
+    height: 40px;
+    width: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%; /* Lingkaran */
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    margin: 0 auto; /* Tengah di dalam grid */
+    transition: all 0.2s ease;
+    color: var(--text-dark);
+}
+
+/* Hover Effect (Desktop & Mobile Touch) */
+.calendar-day:hover {
+    background-color: #e0f2fe; /* Biru Sangat Muda */
+    color: var(--primary);
+    font-weight: 700;
+}
+
+/* Hari Ini (Active) */
+.calendar-day.today {
+    background: var(--primary-gradient);
+    color: white !important;
+    box-shadow: 0 4px 10px rgba(14, 165, 233, 0.4);
+}
+
+/* Hari Libur (Sabtu/Minggu) */
+.calendar-day.holiday {
+    color: #ef4444; /* Merah */
+}
+
+/* Tanggal Bulan Lain (Pudar) */
+.calendar-day.faded {
+    color: #cbd5e1;
+    pointer-events: none;
+}
+
+/* Class fade tetap sama */
+.fade-out { opacity: 0; pointer-events: none; }
+.fade-in { animation: fadeInPage 0.8s ease-out; }
+@keyframes fadeInPage { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Typography perbaikan untuk label profil */
+.text-muted { color: #64748b !important; }
+.fw-semibold { font-weight: 600 !important; }
+
+/* --- GENERAL --- */
+.content-container { max-width: 900px; margin: 0 auto; padding-bottom: 100px; }
+.avatar-circle { width: 40px; height: 40px; border-radius: 50%; }
+.card-date-gradient { background: var(--primary-gradient); border-radius: 24px; box-shadow: 0 10px 25px rgba(14, 165, 233, 0.3); }
+.icon-box { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; }
+.bg-success-soft { background: rgba(255,255,255,0.2); color: #bbf7d0; }
+.bg-danger-soft { background: rgba(255,255,255,0.2); color: #fecaca; }
+.bubble { width: 28px; height: 28px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.75rem; }
+.bubble.active { background: white; color: var(--primary); }
+.hist-item-gradient { background: linear-gradient(90deg, #38bdf8 0%, #0ea5e9 100%); color: white; border-radius: 16px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 10px rgba(56, 189, 248, 0.2); }
+.badge-kdk { background: #f59e0b; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; }
+.badge-kdm { background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; }
+
+.d-none { display: none !important; }
+.cursor-pointer { cursor: pointer; }
+.animate-fade-in { animation: fadeIn 0.5s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Modal */
+.custom-modal-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    
+    /* GANTI INI: Dari 2000 menjadi 10000 agar muncul di atas Login (9999) */
+    z-index: 10000 !important; 
+    
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(3px);
+}
+.custom-modal-box { background: white; width: 85%; max-width: 320px; padding: 25px; border-radius: 20px; }
+.modal-icon-wrapper { width: 50px; height: 50px; background: #e0f2fe; color: var(--primary); border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
