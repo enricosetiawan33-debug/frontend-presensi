@@ -3,7 +3,7 @@
 // ==========================================
 
 const USERS = [{ 
-    username: 'enrico', 
+    username: 'udin@gmail.com', 
     password: '123', 
     fullname: 'Muhammad Enrico Setiawan',
     nip: '19950817 202401 1 001',
@@ -103,6 +103,17 @@ function handleLogin(e) {
     e.preventDefault();
     const u = document.getElementById('inputUser').value.trim();
     const p = document.getElementById('inputPass').value.trim();
+
+    // --- VALIDASI FORMAT EMAIL ---
+    // Regex sederhana untuk mengecek apakah ada karakter '@' dan '.'
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(u)) {
+        return showAppModal("Format Salah", "Username harus berupa alamat email yang valid.<br>(Contoh: udin@gmail.com)", "error");
+    }
+
+    // --- LOGIKA LOGIN (Cek Database USERS) ---
+    // Note: Pastikan data USERS di atas file JS username-nya sudah diganti jadi email
     const found = USERS.find(x => x.username.toLowerCase() === u.toLowerCase() && x.password === p);
     
     if(found) {
@@ -136,7 +147,7 @@ function handleLogin(e) {
             percentText.innerText = percent + "%";
         }, 30);
     } else {
-        showAppModal("Gagal", "Username atau Password salah", "error");
+        showAppModal("Gagal", "Email atau Password salah", "error");
     }
 }
 
