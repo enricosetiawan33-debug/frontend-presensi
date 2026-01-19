@@ -2,595 +2,676 @@
 // 1. CONFIGURATION & DATA
 // ==========================================
 
-const USERS = [{ 
-    username: 'udin@gmail.com', 
-    password: '123', 
-    fullname: 'Muhammad Enrico Setiawan',
-    nip: '19950817 202401 1 001',
-    ttl: 'Jakarta, 17 Agustus 1995',
-    address: 'Jl. Jenderal Sudirman, Senayan, Jakarta Pusat',
-    status: 'PNS'
-}];
-
-// --- DATABASE LIBUR NASIONAL & CUTI BERSAMA 2026 ---
-// Sumber: SKB 3 Menteri (Proyeksi 2026)
-const HOLIDAYS_2026 = {
-    // JANUARI
-    "2026-01-01": { name: "Tahun Baru 2026 Masehi", type: "nasional" },
-    "2026-01-16": { name: "Isra Mi'raj Nabi Muhammad SAW", type: "nasional" },
-
-    // FEBRUARI
-    "2026-02-16": { name: "Cuti Bersama Tahun Baru Imlek", type: "cuti" },
-    "2026-02-17": { name: "Tahun Baru Imlek 2577 Kongzili", type: "nasional" },
-
-    // MARET
-    "2026-03-18": { name: "Cuti Bersama Hari Suci Nyepi", type: "cuti" },
-    "2026-03-19": { name: "Hari Suci Nyepi (Tahun Baru Saka 1948)", type: "nasional" },
-    "2026-03-20": { name: "Cuti Bersama Idul Fitri 1447 H", type: "cuti" },
-    "2026-03-21": { name: "Hari Raya Idul Fitri 1447 H", type: "nasional" },
-    "2026-03-22": { name: "Hari Raya Idul Fitri 1447 H", type: "nasional" },
-    "2026-03-23": { name: "Cuti Bersama Idul Fitri 1447 H", type: "cuti" },
-    "2026-03-24": { name: "Cuti Bersama Idul Fitri 1447 H", type: "cuti" },
-
-    // APRIL
-    "2026-04-03": { name: "Wafat Yesus Kristus", type: "nasional" },
-    "2026-04-05": { name: "Kebangkitan Yesus Kristus (Paskah)", type: "nasional" },
-
-    // MEI
-    "2026-05-01": { name: "Hari Buruh Internasional", type: "nasional" },
-    "2026-05-14": { name: "Kenaikan Yesus Kristus", type: "nasional" },
-    "2026-05-15": { name: "Cuti Bersama Kenaikan Yesus Kristus", type: "cuti" },
-    "2026-05-27": { name: "Hari Raya Idul Adha 1447 H", type: "nasional" },
-    "2026-05-28": { name: "Cuti Bersama Idul Adha 1447 H", type: "cuti" },
-    "2026-05-31": { name: "Hari Raya Waisak 2570 BE", type: "nasional" },
-
-    // JUNI
-    "2026-06-01": { name: "Hari Lahir Pancasila", type: "nasional" },
-    "2026-06-16": { name: "Tahun Baru Islam 1448 Hijriah", type: "nasional" },
-
-    // AGUSTUS
-    "2026-08-17": { name: "Hari Kemerdekaan Republik Indonesia", type: "nasional" },
-    "2026-08-25": { name: "Maulid Nabi Muhammad SAW", type: "nasional" },
-
-    // DESEMBER
-    "2026-12-24": { name: "Cuti Bersama Hari Raya Natal", type: "cuti" },
-    "2026-12-25": { name: "Hari Raya Natal", type: "nasional" }
-};
+const API_BASE_URL = "http://10.30.12.145:8000/api"; 
 
 const STORAGE_KEY_DATA = 'presensi_app_data_final';
 const STORAGE_KEY_USER = 'presensi_user_session_final';
+const STORAGE_KEY_TOKEN = 'presensi_user_token_dynamic';
 
-let currentCalendarDate = new Date(); // Menyimpan bulan yang sedang dilihat
+let currentCalendarDate = new Date(); 
 let currentUserLat = null, currentUserLon = null, activeUser = null;
+let currentNotifMessage = "Tidak ada notifikasi baru.";
 
 // Clock Variables
 let appClockOffset = 0; 
 let isClockSynced = false;
-let lastTickTime = Date.now(); // Untuk deteksi lompatan waktu
+let lastTickTime = Date.now(); 
+
+// Data Libur (Dinamis dari API)
+let HOLIDAYS_DATA = {}; 
+
+// Daftar Tanggal yang WAJIB dianggap Cuti Bersama (Override API)
+const FORCED_CUTI_DATES = [
+    "2026-02-16", "2026-03-18", "2026-03-20", "2026-03-23", 
+    "2026-03-24", "2026-05-15", "2026-05-28", "2026-12-26"
+];
+
+// --- HELPER BARU: Format Hanya Jam (HH:mm:ss) ---
+// Solusi Masalah #1: Menghilangkan tanggal, sisa jam saja
+function formatTimeOnly(dateTimeStr) {
+    // Cek jika kosong atau default
+    if (!dateTimeStr || dateTimeStr === '--:--:--' || dateTimeStr === '-' || dateTimeStr === null) {
+        return '--:--:--';
+    }
+    // Jika formatnya "YYYY-MM-DD HH:mm:ss", ambil bagian setelah spasi
+    if (dateTimeStr.includes(' ')) {
+        return dateTimeStr.split(' ')[1];
+    }
+    // Jika sudah format jam saja, kembalikan langsung
+    return dateTimeStr;
+}
 
 // ==========================================
-// 2. INITIALIZATION
+// 2. INITIALIZATION & LOGIN
 // ==========================================
 
 function onAppReady() {
-    const saved = localStorage.getItem(STORAGE_KEY_USER);
-    if (saved) {
+    const savedUser = localStorage.getItem(STORAGE_KEY_USER);
+    const savedToken = localStorage.getItem(STORAGE_KEY_TOKEN);
+
+    if (savedUser && savedToken) {
         try { 
-            const savedUser = JSON.parse(saved);
-            const freshUser = USERS.find(u => u.username === savedUser.username);
-            activeUser = freshUser || savedUser;
-            localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(activeUser));
+            activeUser = JSON.parse(savedUser);
+            activeUser.token = savedToken; 
             initDashboard(); 
-        } 
-        catch (e) { 
-            localStorage.removeItem(STORAGE_KEY_USER); 
-            switchView('login'); 
-        }
+        } catch (e) { forceLocalLogout(); }
     } else { 
         switchView('login'); 
+        const lastEmail = localStorage.getItem('presensi_last_email');
+        const inputUser = document.getElementById('inputUser'); 
+        if (lastEmail && inputUser) inputUser.value = lastEmail;
     }
 
-    if(document.getElementById('loginForm')) {
-        const f = document.getElementById('loginForm').cloneNode(true);
-        document.getElementById('loginForm').replaceWith(f);
-        f.addEventListener('submit', handleLogin);
+    const loginForm = document.getElementById('loginForm');
+    if(loginForm) {
+        const newForm = loginForm.cloneNode(true);
+        loginForm.parentNode.replaceChild(newForm, loginForm);
+        newForm.addEventListener('submit', handleLogin);
     }
+
     const btn = document.getElementById('btnAbsen');
     if(btn) btn.onclick = processAttendance;
-}
-
-function handleLogin(e) {
-    e.preventDefault();
-    const u = document.getElementById('inputUser').value.trim();
-    const p = document.getElementById('inputPass').value.trim();
-
-    // --- VALIDASI FORMAT EMAIL ---
-    // Regex sederhana untuk mengecek apakah ada karakter '@' dan '.'
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!emailRegex.test(u)) {
-        return showAppModal("Format Salah", "Username harus berupa alamat email yang valid.<br>(Contoh: udin@gmail.com)", "error");
-    }
-
-    // --- LOGIKA LOGIN (Cek Database USERS) ---
-    // Note: Pastikan data USERS di atas file JS username-nya sudah diganti jadi email
-    const found = USERS.find(x => x.username.toLowerCase() === u.toLowerCase() && x.password === p);
     
-    if(found) {
-        activeUser = found; 
-        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(activeUser));
-        document.getElementById('appModal').classList.add('d-none');
+    document.addEventListener("resume", () => { syncTimeWithServer(); }, false);
+}
 
-        const loginView = document.getElementById('viewLogin');
-        loginView.classList.add('d-none');
-        const loadingView = document.getElementById('viewLoading');
-        loadingView.classList.remove('d-none');
+// --- FUNGSI LOGIN ---
+async function handleLogin(e) {
+    e.preventDefault();
+    const emailEl = document.getElementById('inputUser') || document.getElementById('email');
+    const passEl = document.getElementById('inputPass') || document.getElementById('password');
+    const email = emailEl.value.trim();
+    const password = passEl.value.trim();
+    
+    if (!email || !password) return showAppModal("Gagal", "Email dan Password wajib diisi", "error");
 
-        let percent = 0;
-        const percentText = document.getElementById('loadingPercent');
+    showAppModal("Memproses", "Menghubungi Server...", "info");
+
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); 
+
+        const response = await fetch(`${API_BASE_URL}/login.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email, password: password }),
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        const result = await response.json();
+
+        if (!response.ok || (result.status && result.status !== 'success')) {
+            throw new Error(result.message || "Login Gagal");
+        }
+
+        const userToken = result.data.token;
+        const userData = result.data.user;
+        localStorage.setItem(STORAGE_KEY_TOKEN, userToken);
+
+        const profileResponse = await fetch(`${API_BASE_URL}/profile.php`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${userToken}`, 'Content-Type': 'application/json' }
+        });
         
-        const interval = setInterval(() => {
-            percent += Math.floor(Math.random() * 5) + 1;
-            if (percent >= 100) {
-                percent = 100;
-                clearInterval(interval);
-                setTimeout(() => {
-                    loadingView.classList.add('fade-out');
-                    setTimeout(() => {
-                        loadingView.classList.add('d-none');
-                        loadingView.classList.remove('fade-out');
-                        initDashboard();
-                        document.getElementById('mainLayout').classList.add('fade-in');
-                    }, 500);
-                }, 300);
-            }
-            percentText.innerText = percent + "%";
-        }, 30);
-    } else {
-        showAppModal("Gagal", "Email atau Password salah", "error");
+        let finalUserData = userData;
+        if (profileResponse.ok) {
+            const profileResult = await profileResponse.json();
+            if(profileResult.data) finalUserData = profileResult.data;
+        }
+
+        let formattedTTL = "-";
+        if (finalUserData.tempat_lahir && finalUserData.tanggal_lahir) {
+            try {
+                const d = new Date(finalUserData.tanggal_lahir);
+                formattedTTL = `${finalUserData.tempat_lahir}, ${d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+            } catch(e) { formattedTTL = `${finalUserData.tempat_lahir}, ${finalUserData.tanggal_lahir}`; }
+        }
+
+        activeUser = {
+            username: email,
+            fullname: finalUserData.name || finalUserData.nama || "User", 
+            nip: finalUserData.nip || "-",                 
+            ttl: formattedTTL,
+            address: finalUserData.alamat || "-",          
+            status: finalUserData.jabatan || "PNS",        
+            token: userToken 
+        };
+
+        localStorage.setItem('presensi_last_email', email);
+        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(activeUser));
+        
+        document.getElementById('appModal').classList.add('d-none');
+        startLoadingToDashboard();
+
+    } catch (error) {
+        showAppModal("Gagal Masuk", error.message, "error");
     }
 }
+
+function startLoadingToDashboard() {
+    const loginView = document.getElementById('viewLogin');
+    loginView.classList.add('d-none');
+    const loadingView = document.getElementById('viewLoading');
+    loadingView.classList.remove('d-none');
+
+    let percent = 0;
+    const percentText = document.getElementById('loadingPercent');
+    const interval = setInterval(() => {
+        percent += 20;
+        if (percent >= 100) {
+            clearInterval(interval);
+            loadingView.classList.add('d-none');
+            initDashboard();
+            document.getElementById('mainLayout').classList.add('fade-in');
+        }
+        percentText.innerText = percent + "%";
+    }, 50);
+}
+
+// ==========================================
+// 3. DASHBOARD & SYSTEM
+// ==========================================
 
 function initDashboard() {
-    // 1. ISI DATA USER (NAMA, NIP, DLL)
     document.querySelectorAll('.user-fullname-text').forEach(el => el.innerText = activeUser.fullname);
-    document.getElementById('profName').innerText = activeUser.fullname;
-    document.getElementById('profNIP').innerText = activeUser.nip;
-    document.getElementById('profTTL').innerText = activeUser.ttl;
-    document.getElementById('profAddress').innerText = activeUser.address;
-    document.getElementById('profStatus').innerText = activeUser.status;
-
-    // --- LOGIKA INISIAL BARU (MES, BS, dll) ---
-    // Pecah nama berdasarkan spasi
-    const nameParts = activeUser.fullname.trim().split(/\s+/); // Pisahkan kata per spasi
+    if(document.getElementById('profName')) document.getElementById('profName').innerText = activeUser.fullname;
+    if(document.getElementById('profNIP')) document.getElementById('profNIP').innerText = activeUser.nip;
+    if(document.getElementById('profTTL')) document.getElementById('profTTL').innerText = activeUser.ttl;
+    if(document.getElementById('profAddress')) document.getElementById('profAddress').innerText = activeUser.address;
+    
+    const nameParts = activeUser.fullname.trim().split(/\s+/);
     let initials = '';
+    for (let i = 0; i < Math.min(nameParts.length, 3); i++) initials += nameParts[i][0].toUpperCase();
+    document.querySelectorAll('.user-initials').forEach(el => el.innerText = initials);
+    if(document.getElementById('profInitials')) document.getElementById('profInitials').innerText = initials;
 
-    // Ambil huruf pertama dari setiap kata (maksimal 3 kata)
-    for (let i = 0; i < Math.min(nameParts.length, 3); i++) {
-        initials += nameParts[i][0].toUpperCase();
-    }
-
-    // Tampilkan Inisial di semua elemen avatar (Desktop, Mobile, Profil)
-    // Class 'user-initials' ada di 3 tempat: Navbar Desktop, Navbar Mobile, Halaman Profil
-    document.querySelectorAll('.user-initials').forEach(el => {
-        el.innerText = initials;
-    });
-    
-    // Khusus untuk Halaman Profil (karena ID-nya spesifik 'profInitials')
-    // Jika elemen ini tidak pakai class 'user-initials', kita set manual juga
-    const elProfInitials = document.getElementById('profInitials');
-    if(elProfInitials) elProfInitials.innerText = initials;
-
-
-    // 2. BADGE STATUS (PNS / PPPK / ALIH DAYA)
     const elStatus = document.getElementById('profStatus');
-    
-    if (activeUser.status === 'PNS') {
-        // PNS: Warna Biru
-        elStatus.className = 'badge bg-primary rounded-pill px-3 py-2';
-    } 
-    else if (activeUser.status === 'PPPK') {
-        // PPPK: Warna Hijau
-        elStatus.className = 'badge bg-success rounded-pill px-3 py-2';
-    } 
-    else if (activeUser.status === 'Alih Daya') {
-        // Alih Daya: Warna Kuning (Teks Hitam agar terbaca)
-        elStatus.className = 'badge bg-warning text-dark rounded-pill px-3 py-2';
-    } 
-    else {
-        // Default/Lainnya: Warna Abu-abu
-        elStatus.className = 'badge bg-secondary rounded-pill px-3 py-2';
+    if(elStatus) {
+        elStatus.innerText = activeUser.status;
+        if (activeUser.status.includes('PNS')) elStatus.className = 'badge bg-primary rounded-pill px-3 py-2';
+        else if (activeUser.status.includes('PPPK')) elStatus.className = 'badge bg-success rounded-pill px-3 py-2';
+        else elStatus.className = 'badge bg-secondary rounded-pill px-3 py-2';
     }
 
-    // 3. START SYSTEM (WAKTU & LOKASI)
     syncTimeWithServer(); 
     getLocation(); 
 
-    // Update UI setiap detik
     setInterval(() => {
         detectTimeTampering(); 
         updateDateDisplay(); 
+        updateLiveClock(); 
         checkNotification(); 
     }, 1000);
 
-    // Re-sync waktu setiap 60 detik
     setInterval(syncTimeWithServer, 60000);
 
     renderCalendar();
-    loadAttendanceHistory();
+    checkTodayStatus();     
+    loadAttendanceHistory(); 
+    
+    const now = new Date();
+    fetchHolidays(now.getMonth() + 1, now.getFullYear());
+    
     switchView('dashboard');
 }
 
 // ==========================================
-// 3. TIME SYNC & ANTI-TAMPER LOGIC
+// 4. API IMPLEMENTATION
+// ==========================================
+
+async function checkTodayStatus() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/today.php`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${activeUser.token}`, 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) return;
+        const result = await response.json();
+        const data = result.data;
+
+        if (data) {
+            const elIn = document.getElementById('clockInDisplay');
+            const elOut = document.getElementById('clockOutDisplay');
+            
+            // --- FIX MASALAH #1: Format Jam Saja (Buang Tanggal) ---
+            const rawIn = data.clock_in_time || data.jam_masuk;
+            const rawOut = data.clock_out_time || data.jam_keluar || data.jam_pulang;
+
+            const inTime = formatTimeOnly(rawIn);
+            const outTime = formatTimeOnly(rawOut);
+
+            if (elIn) elIn.innerText = inTime;
+            if (elOut) elOut.innerText = outTime;
+
+            // --- FIX MASALAH #3: Force update bubble dengan status hari ini ---
+            forceUpdateTodayBubble(inTime !== '--:--:--');
+        }
+    } catch (e) { console.warn("Gagal cek status hari ini:", e); }
+}
+
+async function fetchHolidays(month, year) {
+    try {
+        if (!month) month = currentCalendarDate.getMonth() + 1;
+        if (!year) year = currentCalendarDate.getFullYear();
+
+        const response = await fetch(`${API_BASE_URL}/calendar.php?month=${month}&year=${year}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${activeUser.token}`, 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) return; 
+        
+        const result = await response.json();
+        
+        if (result.status === 'success' && result.data && result.data.holidays) {
+            const holidaysFromApi = result.data.holidays;
+            for (const [dateKey, holidayData] of Object.entries(holidaysFromApi)) {
+                let type = holidayData.type; 
+                if (FORCED_CUTI_DATES.includes(dateKey)) {
+                    type = 'cuti';
+                }
+                HOLIDAYS_DATA[dateKey] = { name: holidayData.name, type: type };
+            }
+            renderCalendar();
+        }
+    } catch (e) { console.warn("Gagal ambil data kalender:", e); }
+}
+
+// ==========================================
+// 5. UTILS (Time & Location)
 // ==========================================
 
 async function syncTimeWithServer() {
     try {
-        const response = await fetch("https://timeapi.io/api/Time/current/zone?timeZone=Asia/Jakarta&_t=" + new Date().getTime());
-        if (!response.ok) return; 
-        
-        const data = await response.json();
-        const serverTime = new Date(data.dateTime).getTime();
-        const deviceTime = new Date().getTime();
-        
-        appClockOffset = serverTime - deviceTime; 
-        isClockSynced = true;
-        
-        console.log("Clock Synced. Offset:", appClockOffset);
-        updateDateDisplay(); 
+        const response = await fetch(`${API_BASE_URL}/login.php`, { method: 'HEAD' });
+        const dateHeader = response.headers.get('Date');
+        if (dateHeader) {
+            const serverTime = new Date(dateHeader).getTime();
+            const now = Date.now();
+            appClockOffset = serverTime - now;
+            isClockSynced = true;
+            return; 
+        }
+    } catch (e) { }
 
-    } catch (e) {
-        console.warn("Time sync failed:", e);
-    }
+    try {
+        const response = await fetch("https://worldtimeapi.org/api/timezone/Asia/Jakarta");
+        if (response.ok) {
+            const data = await response.json();
+            appClockOffset = new Date(data.datetime).getTime() - Date.now();
+            isClockSynced = true;
+            return;
+        }
+    } catch (e) { }
 }
 
 function getAppTime() {
-    if (isClockSynced) {
-        return new Date(new Date().getTime() + appClockOffset);
-    }
-    return new Date();
+    return isClockSynced ? new Date(new Date().getTime() + appClockOffset) : new Date();
 }
 
-// --- FITUR BARU: DETEKSI LOMPATAN WAKTU ---
+function updateLiveClock() {
+    const now = getAppTime(); 
+    const timeStr = now.toLocaleTimeString('en-GB', { hour12: false }); 
+    const clockEl = document.getElementById('liveServerClock');
+    if (clockEl) clockEl.innerText = timeStr;
+}
+
 function detectTimeTampering() {
     const currentTick = Date.now();
-    // Hitung selisih waktu nyata sejak detik terakhir
-    const delta = currentTick - lastTickTime;
-    
-    // Normalnya delta sekitar 1000ms (1 detik).
-    // Jika delta > 5000ms (5 detik) ATAU delta < -1000ms (mundur),
-    // Berarti user mengubah jam sistem atau mem-pause aplikasi lama.
-    
-    // Kita beri toleransi agak besar (misal 60 detik) untuk lag sistem wajar.
-    // Tapi jika berubah jam/menit secara manual, pasti lebih dari itu.
-    if (Math.abs(delta) > 60000) { 
-        console.warn("Time Jump Detected! Resyncing...");
-        // Paksa Sync Ulang segera agar tampilan kembali benar
-        syncTimeWithServer();
-    }
-    
+    if (Math.abs(currentTick - lastTickTime) > 60000) syncTimeWithServer();
     lastTickTime = currentTick;
 }
 
-// ==========================================
-// 4. UI UPDATE
-// ==========================================
+function getLocation() {
+    if (navigator.geolocation) {
+        const textEls = document.querySelectorAll('.locationTextShort');
+        textEls.forEach(el => { el.innerText = "Mencari lokasi..."; el.style.color = '#0088CC'; });
 
-function updateDateDisplay() {
-    const d = getAppTime();
-
-    const dateStr = d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    const elDesk = document.getElementById('deskHeaderDate'); 
-    if(elDesk) elDesk.innerText = dateStr;
-
-    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    
-    const dNum = d.getDate();
-    let suffix = 'th'; 
-    if(dNum===1||dNum===21||dNum===31) suffix='st'; 
-    else if(dNum===2||dNum===22) suffix='nd'; 
-    else if(dNum===3||dNum===23) suffix='rd';
-    
-    const elNum = document.getElementById('dashDateNum');
-    if(elNum) elNum.innerHTML = `${dNum}<sup class="fs-4">${suffix}</sup>`;
-    
-    const elDay = document.getElementById('dashDateDay');
-    if(elDay) elDay.innerText = days[d.getDay()];
-    
-    const elMonth = document.getElementById('dashDateMonth');
-    if(elMonth) elMonth.innerText = `${months[d.getMonth()]} ${d.getFullYear()}`;
-}
-
-// ==========================================
-// 5. ATTENDANCE LOGIC (STRICT BLOCKING)
-// ==========================================
-
-// --- LOGIKA PRESENSI (VERSI OFFLINE TIME / DEVICE TIME) ---
-async function processAttendance() {
-    // 1. Cek Lokasi (TETAP AKTIF)
-    if(!currentUserLat || !currentUserLon) {
-        return showAppModal("Gagal", "Lokasi belum ditemukan. Pastikan GPS aktif.", "error");
+        navigator.geolocation.getCurrentPosition(
+            (p) => {
+                currentUserLat = p.coords.latitude;
+                currentUserLon = p.coords.longitude;
+                fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${currentUserLat}&longitude=${currentUserLon}&localityLanguage=id`)
+                    .then(res => res.json())
+                    .then(data => {
+                        const locName = (data.locality || '') + ", " + (data.city || data.principalSubdivision || '');
+                        textEls.forEach(el => { el.innerText = locName || "Lokasi ditemukan"; el.style.color = '#0088CC'; el.classList.remove('text-danger'); });
+                    })
+                    .catch(() => { textEls.forEach(el => { el.innerText = "Lokasi ditemukan"; el.style.color = '#0088CC'; }); });
+            },
+            (err) => {
+                let msg = "GPS Error";
+                if (err.code === 1) msg = "Izin Ditolak"; 
+                else if (err.code === 2) msg = "GPS Mati"; 
+                else if (err.code === 3) msg = "Timeout"; 
+                textEls.forEach(el => { el.innerText = msg; el.style.color = 'red'; });
+            },
+            { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+        );
+    } else {
+        document.querySelectorAll('.locationTextShort').forEach(el => { el.innerText = "Tidak Support GPS"; el.style.color = 'red'; });
     }
-
-    // Tampilkan modal loading sebentar (opsional, biar ada efek proses)
-    showAppModal("Memproses", "Mencatat Presensi...");
-
-    try {
-        // --- BYPASS SERVER TIME (PAKAI WAKTU HP) ---
-        // Kita tidak lagi fetch ke server, langsung pakai waktu perangkat
-        const now = new Date(); 
-        
-        // --- SIMPAN DATA ---
-        const rawDate = now.toDateString();
-        const timeStr = now.toLocaleTimeString('en-GB', { hour12: false }); // Format: 16:30:00
-        
-        let hist = JSON.parse(localStorage.getItem(STORAGE_KEY_DATA)||'[]');
-        let today = hist.find(i => i.username === activeUser.username && i.rawDate === rawDate);
-        const type = 'KDK'; 
-
-        // --- SIMULASI DELAY (OPSIONAL) ---
-        // Agar tidak terlalu instan, kita beri jeda 500ms seolah-olah sedang "menyimpan"
-        await new Promise(r => setTimeout(r, 500));
-
-        if(!today) {
-            // --- PRESENSI MASUK ---
-            hist.push({
-                username: activeUser.username, 
-                rawDate: rawDate, 
-                dayIndo: now.toLocaleDateString('id-ID', {weekday:'long'}),
-                dateIndo: now.toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}),
-                type: type, 
-                inTime: timeStr, 
-                outTime: '--:--:--'
-            });
-            localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(hist));
-            showAppModal("Berhasil", "Presensi Masuk Berhasil");
-        
-        } else if(today.outTime === '--:--:--') {
-            // --- PRESENSI PULANG (VALIDASI JAM 16:00 - PAKAI JAM HP) ---
-            
-            const currentHour = now.getHours();   
-            const currentMinute = now.getMinutes(); 
-            
-            // ATURAN: Boleh pulang mulai 16:00
-            const minHourOut = 16; 
-            const minMinuteOut = 0; 
-
-            if (currentHour < minHourOut || (currentHour === minHourOut && currentMinute < minMinuteOut)) {
-                return showAppModal(
-                    "Belum Waktunya", 
-                    `Anda belum bisa absen pulang.<br>
-                     Jam Pulang: <b>${minHourOut}:${minMinuteOut.toString().padStart(2, '0')}</b><br>
-                     Sekarang: <b>${timeStr}</b>`, 
-                    "error"
-                );
-            }
-
-            // Simpan Data Pulang
-            today.outTime = timeStr; 
-            localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(hist));
-            showAppModal("Berhasil", "Presensi Pulang Berhasil");
-        
-        } else {
-            showAppModal("Info", "Sudah selesai hari ini");
-        }
-        
-        loadAttendanceHistory();
-
-    } catch (e) {
-        console.error("Attendance Error:", e);
-        showAppModal("Gagal", `Terjadi kesalahan saat menyimpan data.`, "error");
-    }
-}
-
-// ==========================================
-// 6. HELPERS
-// ==========================================
-
-function checkNotification() {
-    const now = getAppTime(); // Use corrected time
-    const hour = now.getHours(); 
-    const rawDate = now.toDateString();
-    
-    const hist = JSON.parse(localStorage.getItem(STORAGE_KEY_DATA)||'[]');
-    const todayRec = hist.find(i => i.username === activeUser.username && i.rawDate === rawDate);
-
-    let showRedDot = false;
-    currentNotifMessage = "Tidak ada notifikasi saat ini.";
-
-    if (hour >= 7 && hour < 9 && !todayRec) {
-        showRedDot = true;
-        currentNotifMessage = "🔔 <b>Pengingat Masuk</b><br>Halo! Sudah Masuk Jam kerja (07:00 - 08:00). Segera lakukan presensi Masuk.";
-    }
-    else if (hour >= 16 && hour < 18 && todayRec && todayRec.outTime === '--:--:--') {
-        showRedDot = true;
-        currentNotifMessage = "🔔 <b>Pengingat Pulang</b><br>Jam kerja usai (16:00 - 17:00). Segera lakukan presensi Pulang.";
-    }
-
-    const badges = document.querySelectorAll('.notif-badge');
-    badges.forEach(el => {
-        if(showRedDot) el.classList.remove('d-none');
-        else el.classList.add('d-none');
-    });
-}
-
-function loadAttendanceHistory() {
-    const hist = JSON.parse(localStorage.getItem(STORAGE_KEY_DATA) || '[]');
-    const myHist = hist.filter(i => i.username === activeUser.username)
-        .sort((a, b) => { return new Date(b.rawDate) - new Date(a.rawDate); });
-
-    let kdk = 0, kdm = 0, dashHTML = '', fullHTML = '';
-    
-    // Update data dashboard (jam masuk/keluar hari ini)
-    const todayStr = getAppTime().toDateString(); 
-    const todayRec = myHist.find(i => i.rawDate === todayStr);
-    
-    const elClockIn = document.getElementById('clockInDisplay');
-    const elClockOut = document.getElementById('clockOutDisplay');
-    if(elClockIn) elClockIn.innerText = todayRec ? todayRec.inTime : "--:--:--";
-    if(elClockOut) elClockOut.innerText = todayRec ? todayRec.outTime : "--:--:--";
-
-    myHist.forEach((rec, idx) => {
-        // Logika Badge
-        if (rec.type === 'KDK') kdk++; else kdm++;
-        const badge = rec.type === 'KDK' ? 'badge-kdk' : 'badge-kdm';
-
-        // HTML untuk Dashboard (Card)
-        if (idx < 2) {
-            dashHTML += `
-            <div class="hist-item-gradient mb-2">
-                <div>
-                    <div class="fw-bold small">${rec.dayIndo}, ${rec.dateIndo}</div>
-                    <div class="d-flex gap-3 mt-1" style="font-size:0.75rem">
-                        <span class="d-flex align-items-center gap-2">
-                            <i class="fas fa-door-open text-success"></i> ${rec.inTime}
-                        </span>
-                        <span class="d-flex align-items-center gap-2">
-                            <i class="fas fa-door-closed text-danger"></i> ${rec.outTime}
-                        </span>
-                    </div>
-                </div>
-                <span class="${badge} shadow-sm">${rec.type}</span>
-            </div>`;
-        }
-
-        // HTML untuk Tabel Full (Sederhana tanpa width, karena ikut Header)
-        // Kita tambahkan text-truncate agar jika teks kepanjangan tidak merusak layout
-        fullHTML += `
-        <tr>
-            <td class="ps-4 fw-bold text-truncate">
-                <div class="d-flex flex-column">
-                    <span>${rec.dayIndo}</span>
-                    <small class="fw-normal text-muted" style="font-size: 0.75rem;">${rec.dateIndo}</small>
-                </div>
-            </td>
-            
-            <td class="text-start ps-2 align-middle">
-                <span class="${badge} px-2 py-1" style="min-width: 60px; display: inline-block; text-align: center;">${rec.type}</span>
-            </td>
-            
-            <td class="text-start ps-2 font-monospace small text-dark align-middle">
-                ${rec.inTime}
-            </td>
-            
-            <td class="text-start ps-2 font-monospace small text-dark align-middle">
-                ${rec.outTime}
-            </td>
-        </tr>`;
-    });
-
-    // Render ke HTML
-    const dList = document.getElementById('dashboardHistoryList'); if(dList) dList.innerHTML = dashHTML;
-    const fList = document.getElementById('fullHistoryList'); if(fList) fList.innerHTML = fullHTML;
-    
-    const elKDK = document.getElementById('countKDK'); if(elKDK) elKDK.innerText = kdk;
-    const elKDM = document.getElementById('countKDM'); if(elKDM) elKDM.innerText = kdm;
-
-    updateWeeklyStatusBubbles(hist);
-}
-
-function updateWeeklyStatusBubbles(allHist) {
-    const weeklyContainer = document.getElementById('weeklyBubbles');
-    if (!weeklyContainer) return;
-
-    const now = getAppTime(); // Corrected Time
-    const currentDay = now.getDay(); 
-    
-    const distanceToMonday = currentDay === 0 ? 6 : currentDay - 1;
-    const mondayDate = new Date(now);
-    mondayDate.setDate(now.getDate() - distanceToMonday);
-
-    let bubblesHTML = '';
-
-    for (let i = 0; i < 5; i++) {
-        const checkDate = new Date(mondayDate);
-        checkDate.setDate(mondayDate.getDate() + i);
-        const checkDateStr = checkDate.toDateString();
-
-        const record = allHist.find(h => h.username === activeUser.username && h.rawDate === checkDateStr);
-        const isCompleted = record && record.outTime !== '--:--:--';
-
-        if (isCompleted) bubblesHTML += `<div class="bubble active"><i class="fas fa-check"></i></div>`;
-        else bubblesHTML += `<div class="bubble"></div>`;
-    }
-    weeklyContainer.innerHTML = bubblesHTML;
 }
 
 function refreshLocation() {
     const icons = document.querySelectorAll('.fa-sync-alt');
     icons.forEach(i => i.classList.add('fa-spin'));
-    document.querySelectorAll('.locationTextShort').forEach(el => el.innerText = "Mencari lokasi...");
     getLocation();
     setTimeout(() => { icons.forEach(i => i.classList.remove('fa-spin')); }, 2000);
 }
 
-function getLocation() {
-    if(navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            async (p) => {
-                currentUserLat = p.coords.latitude; 
-                currentUserLon = p.coords.longitude;
-                try {
-                    const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${currentUserLat}&longitude=${currentUserLon}&localityLanguage=id`);
-                    const data = await response.json();
-                    if(data) {
-                        const locality = data.locality || ''; 
-                        const city = data.city || data.principalSubdivision || ''; 
-                        let formattedAddress = "";
-                        if(locality) formattedAddress += `${locality}, `;
-                        if(city) formattedAddress += `${city}`;
-                        document.querySelectorAll('.locationTextShort').forEach(el => {
-                            el.innerText = formattedAddress || "Lokasi terdeteksi";
-                        });
-                    }
-                } catch (error) {
-                    document.querySelectorAll('.locationTextShort').forEach(el => el.innerText = "Gagal memuat alamat");
-                }
-            },
-            (err) => {
-                let msg = "GPS Error";
-                if(err.code === 1) msg = "Izin GPS Ditolak";
-                else if(err.code === 2) msg = "GPS Tidak Aktif";
-                else if(err.code === 3) msg = "Koneksi Lemah";
-                document.querySelectorAll('.locationTextShort').forEach(el => {
-                    el.innerText = msg;
-                    el.style.color = 'red'; 
-                });
-                if(err.code === 1 || err.code === 2) showAppModal("Masalah GPS", "Mohon aktifkan GPS.");
-            },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
+// ==========================================
+// 6. ATTENDANCE LOGIC
+// ==========================================
+
+async function processAttendance() {
+    if(!currentUserLat || !currentUserLon) {
+        return showAppModal("Gagal", "Lokasi belum ditemukan. Pastikan GPS aktif.", "error");
+    }
+    
+    const now = getAppTime();
+    const currentHour = now.getHours();
+    const timeStr = now.toLocaleTimeString('en-GB', { hour12: false });
+
+    const elIn = document.getElementById('clockInDisplay').innerText;
+    const elOut = document.getElementById('clockOutDisplay').innerText;
+    
+    const isClockIn = (elIn === '--:--:--');
+    
+    // Logika Validasi Jam Masuk/Pulang
+    if (isClockIn) {
+        if (currentHour < 7) {
+            return showAppModal("Belum Waktunya", `Presensi Masuk baru dibuka pukul <b>07:00</b>.<br>Sekarang: <b>${timeStr}</b>`, "error");
+        }
     } else {
-        document.querySelectorAll('.locationTextShort').forEach(el => el.innerText = "Perangkat tidak dukung GPS");
+        if (elOut !== '--:--:--') {
+            return showAppModal("Info", "Anda sudah selesai presensi hari ini.");
+        }
+        if (currentHour < 16) {
+            return showAppModal("Belum Waktunya", `Anda belum bisa absen pulang.<br>Jam Pulang: <b>16:00</b><br>Sekarang: <b>${timeStr}</b>`, "error");
+        }
+    }
+
+    showAppModal("Memproses", "Mencatat Presensi ke Server...", "info");
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/clock.php`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${activeUser.token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                latitude: currentUserLat,
+                longitude: currentUserLon,
+                type: 'KDK'
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.status === 'success') {
+            showAppModal("Berhasil", result.message || "Presensi Berhasil Dicatat");
+            
+            // --- FIX MASALAH #2: Update Data Secara Berurutan ---
+            // 1. Cek status hari ini (update icon di dashboard)
+            await checkTodayStatus();
+            
+            // 2. Load ulang history (agar tabel dan list terupdate data baru)
+            // Penting: Kita beri delay sedikit agar server selesai memproses
+            setTimeout(() => {
+                loadAttendanceHistory(); 
+            }, 500);
+
+            renderCalendar();
+        } else {
+            throw new Error(result.message || "Gagal melakukan presensi");
+        }
+
+    } catch (e) {
+        showAppModal("Gagal", e.message || "Terjadi kesalahan koneksi.", "error");
     }
 }
 
-function handleNotificationClick() {
-    const isRedDotVisible = !document.getElementById('mobNotifBadge').classList.contains('d-none');
-    if(isRedDotVisible) showAppModal("Notifikasi", currentNotifMessage);
-    else showAppModal("Info", "Tidak ada notifikasi baru.");
+// --- LOAD HISTORY & UPDATE BUBBLES ---
+async function loadAttendanceHistory() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/history.php`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${activeUser.token}`, 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) return; 
+        const result = await response.json();
+        const apiData = result.data || [];
+
+        const uiData = apiData.map(item => {
+            const d = new Date(item.tanggal);
+            const days = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+            const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+            
+            return {
+                rawDate: new Date(item.tanggal).toDateString(),
+                dayIndo: days[d.getDay()],
+                dateIndo: `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`,
+                type: item.status || 'KDK',
+                // --- FIX MASALAH #1: Format History Jam Saja ---
+                inTime: formatTimeOnly(item.jam_masuk),
+                outTime: formatTimeOnly(item.jam_keluar || item.jam_pulang)
+            };
+        });
+
+        localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(uiData));
+
+        renderHistoryUI(uiData);
+        updateWeeklyStatusBubbles(uiData); 
+        renderCalendar(); 
+
+    } catch (e) { 
+        console.warn("Gagal load history API", e); 
+        updateWeeklyStatusBubbles([]); 
+    }
 }
 
-function handleLogout() {
-    document.getElementById('logoutModal').classList.remove('d-none');
+function renderHistoryUI(historyData) {
+    const sortedData = [...historyData].sort((a, b) => new Date(b.rawDate) - new Date(a.rawDate));
+
+    let kdk = 0, kdm = 0, dashHTML = '', fullHTML = '';
+    
+    sortedData.forEach((rec, idx) => {
+        if(rec.type === 'KDK') kdk++; else kdm++;
+        
+        if (idx < 2) {
+            dashHTML += `<div class="hist-item-gradient mb-2"><div><div class="fw-bold small">${rec.dayIndo}, ${rec.dateIndo}</div><div class="d-flex gap-3 mt-1" style="font-size:0.75rem"><span><i class="fas fa-door-open text-success"></i> ${rec.inTime}</span><span><i class="fas fa-door-closed text-danger"></i> ${rec.outTime}</span></div></div><span class="badge ${rec.type==='KDK'?'badge-kdk':'badge-kdm'} shadow-sm">${rec.type}</span></div>`;
+        }
+        fullHTML += `<tr><td class="ps-4 fw-bold text-truncate"><div class="d-flex flex-column"><span>${rec.dayIndo}</span><small class="text-muted" style="font-size:0.7rem">${rec.dateIndo}</small></div></td><td class="text-start ps-2 align-middle"><span class="badge ${rec.type==='KDK'?'badge-kdk':'badge-kdm'}">${rec.type}</span></td><td class="text-start ps-2 small font-monospace text-dark align-middle">${rec.inTime}</td><td class="text-start ps-2 small font-monospace text-dark align-middle">${rec.outTime}</td></tr>`;
+    });
+
+    if(document.getElementById('dashboardHistoryList')) document.getElementById('dashboardHistoryList').innerHTML = dashHTML;
+    if(document.getElementById('fullHistoryList')) document.getElementById('fullHistoryList').innerHTML = fullHTML;
+    if(document.getElementById('countKDK')) document.getElementById('countKDK').innerText = kdk;
+    if(document.getElementById('countKDM')) document.getElementById('countKDM').innerText = kdm;
 }
-function closeLogoutModal() {
-    document.getElementById('logoutModal').classList.add('d-none');
+
+// --- FUNGSI STATUS MINGGU INI (BUBBLES) FIXED V2 ---
+function updateWeeklyStatusBubbles(allHist) {
+    const weeklyContainer = document.getElementById('weeklyBubbles');
+    if (!weeklyContainer) return;
+    if (!allHist) allHist = [];
+
+    const now = getAppTime(); 
+    const currentDay = now.getDay(); 
+    const todayDateStr = now.toDateString(); // Tanggal hari ini string
+
+    const distanceToMonday = currentDay === 0 ? 6 : currentDay - 1;
+    const mondayDate = new Date(now);
+    mondayDate.setDate(now.getDate() - distanceToMonday);
+
+    let bubblesHTML = '';
+    
+    for (let i = 0; i < 5; i++) {
+        const checkDate = new Date(mondayDate);
+        checkDate.setDate(mondayDate.getDate() + i);
+        const checkDateStr = checkDate.toDateString(); 
+        
+        // 1. Cek dari History API
+        const record = allHist.find(h => h.rawDate === checkDateStr);
+        let isPresent = record && record.inTime && record.inTime !== '--:--:--';
+        
+        // --- FIX MASALAH #3: Logika Hybrid (Cek Layar Hari Ini) ---
+        // Jika tanggal yang sedang diloop adalah HARI INI, cek juga elemen DOM.
+        // Ini memastikan bubble aktif meski history API belum update.
+        if (checkDateStr === todayDateStr) {
+            const elIn = document.getElementById('clockInDisplay');
+            if (elIn && elIn.innerText !== '--:--:--') {
+                isPresent = true;
+            }
+        }
+        
+        const dayLetter = ['S','S','R','K','J'][i]; 
+
+        if (isPresent) {
+            bubblesHTML += `<div class="bubble active"><i class="fas fa-check"></i></div>`;
+        } else {
+            bubblesHTML += `<div class="bubble" style="font-size: 0.6rem; opacity: 0.7;">${dayLetter}</div>`;
+        }
+    }
+    
+    weeklyContainer.innerHTML = bubblesHTML;
 }
-function confirmLogout() {
-    localStorage.removeItem(STORAGE_KEY_USER); 
-    location.reload();
+
+function forceUpdateTodayBubble(isTodayPresent) {
+    const savedData = JSON.parse(localStorage.getItem(STORAGE_KEY_DATA) || '[]');
+    updateWeeklyStatusBubbles(savedData);
+}
+
+// ==========================================
+// 7. UI HELPERS & CALENDAR
+// ==========================================
+
+function updateDateDisplay() {
+    const d = getAppTime();
+    document.getElementById('deskHeaderDate').innerText = d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const dNum = d.getDate();
+    let suffix = 'th'; if(dNum==1||dNum==21||dNum==31) suffix='st'; else if(dNum==2||dNum==22) suffix='nd'; else if(dNum==3||dNum==23) suffix='rd';
+    document.getElementById('dashDateNum').innerHTML = `${dNum}<sup class="fs-4">${suffix}</sup>`;
+    document.getElementById('dashDateDay').innerText = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()];
+    document.getElementById('dashDateMonth').innerText = ['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()] + ' ' + d.getFullYear();
+}
+
+function checkNotification() {
+    const now = getAppTime();
+    const hour = now.getHours();
+    const elIn = document.getElementById('clockInDisplay').innerText;
+    const elOut = document.getElementById('clockOutDisplay').innerText;
+    const isClockIn = (elIn !== '--:--:--');
+    const isClockOut = (elOut !== '--:--:--');
+
+    let show = false;
+    if (hour === 7 && !isClockIn) {
+        show = true;
+        currentNotifMessage = "🔔 <b>Pengingat Masuk</b><br>Halo! Sudah waktunya melakukan presensi Masuk.";
+    }
+    else if (hour === 16 && isClockIn && !isClockOut) {
+        show = true;
+        currentNotifMessage = "🔔 <b>Pengingat Pulang</b><br>Halo! Sudah waktunya melakukan presensi Pulang.";
+    }
+    document.querySelectorAll('.notif-badge').forEach(el => show ? el.classList.remove('d-none') : el.classList.add('d-none'));
+}
+
+function changeMonth(step) {
+    currentCalendarDate.setMonth(currentCalendarDate.getMonth() + step);
+    fetchHolidays(currentCalendarDate.getMonth() + 1, currentCalendarDate.getFullYear());
+    renderCalendar();
+}
+
+function renderCalendar() {
+    const year = currentCalendarDate.getFullYear();
+    const month = currentCalendarDate.getMonth();
+    const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    
+    const elTitle = document.getElementById('calendarTitle');
+    if(!elTitle) return;
+    elTitle.innerText = `${monthNames[month]} ${year}`;
+
+    const firstDay = new Date(year, month, 1).getDay(); 
+    const daysInMonth = new Date(year, month + 1, 0).getDate(); 
+    const today = getAppTime();
+
+    let html = '';
+    let holidaysInMonth = []; 
+
+    for (let i = 0; i < firstDay; i++) html += `<div class="calendar-day faded"></div>`;
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateCheck = new Date(year, month, day);
+        const dateKey = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        
+        let classes = 'calendar-day';
+        let clickAttr = '';
+        
+        const holiday = HOLIDAYS_DATA[dateKey];
+        const isWeekend = dateCheck.getDay() === 0 || dateCheck.getDay() === 6;
+
+        if (holiday) {
+            holidaysInMonth.push({ date: day, name: holiday.name, type: holiday.type }); 
+            if (holiday.type === 'cuti' || holiday.type.includes('cuti')) {
+                classes += ' text-warning fw-bold';
+            } else {
+                classes += ' text-danger fw-bold';
+            }
+            const safeName = holiday.name.replace(/'/g, "");
+            clickAttr = `onclick="showHolidayInfo('${safeName}', '${day} ${monthNames[month]}', '${holiday.type}')"`;
+        } else if (isWeekend) {
+            classes += ' text-danger';
+        }
+
+        if (today.getDate() === day && today.getMonth() === month && today.getFullYear() === year) {
+            classes += ' today';
+            if(holiday || isWeekend) classes = classes.replace('text-danger','text-white').replace('text-warning','text-white');
+        }
+
+        const rawDate = dateCheck.toDateString();
+        const record = JSON.parse(localStorage.getItem(STORAGE_KEY_DATA)||'[]').find(r => r.rawDate === rawDate);
+        const isCompleted = record && record.outTime !== '--:--:--' && record.outTime !== null;
+        let dotHtml = '';
+        if (isCompleted) dotHtml = `<div style="height:4px;width:4px;background-color:#10b981;border-radius:50%;margin-top:2px"></div>`;
+
+        const style = clickAttr ? 'cursor:pointer' : '';
+        html += `<div class="${classes}" ${clickAttr} style="${style}"><div class="d-flex flex-column align-items-center justify-content-center w-100 h-100">${day}${dotHtml}</div></div>`;
+    }
+    document.getElementById('calendarGrid').innerHTML = html;
+
+    let holidayHtml = '';
+    if (holidaysInMonth.length > 0) {
+        holidayHtml += `<h6 class="small text-muted fw-bold ps-2 mb-2 mt-3">Daftar Libur Bulan Ini:</h6>`;
+        holidaysInMonth.forEach(h => {
+            let badgeColor = 'bg-danger';
+            let typeLabel = 'Nasional';
+            
+            if (h.type === 'cuti' || h.type.includes('cuti')) {
+                badgeColor = 'bg-warning text-dark';
+                typeLabel = 'Cuti Bersama';
+            }
+
+            holidayHtml += `<div class="d-flex align-items-center gap-3 bg-white p-3 rounded-4 shadow-sm border-0 mb-2"><div class="d-flex flex-column align-items-center justify-content-center bg-light rounded-3" style="width: 45px; height: 45px;"><span class="fw-bold text-dark fs-5 mb-0" style="line-height:1;">${h.date}</span><small class="text-muted" style="font-size: 0.55rem;">${monthNames[month].substr(0,3).toUpperCase()}</small></div><div class="flex-grow-1"><h6 class="fw-bold text-dark mb-0" style="font-size: 0.8rem;">${h.name}</h6><span class="badge ${badgeColor} rounded-pill mt-1" style="font-size: 0.6rem;">${typeLabel}</span></div></div>`;
+        });
+    }
+    const holidayListEl = document.getElementById('holidayList');
+    if (holidayListEl) holidayListEl.innerHTML = holidayHtml;
+}
+
+function showHolidayInfo(name, date, type) {
+    const isCuti = type === 'cuti' || type.includes('cuti');
+    showAppModal(isCuti ? "Cuti Bersama" : "Libur Nasional", `<h6 class="fw-bold">${date}</h6><p class="${isCuti ? 'text-warning' : 'text-danger'} mb-0">${name}</p>`);
 }
 
 function switchView(v) {
-    document.getElementById('viewLogin').classList.add('d-none');
-    document.getElementById('mainLayout').classList.add('d-none');
-    document.getElementById('viewDashboard').classList.add('d-none');
-    document.getElementById('viewHistory').classList.add('d-none');
-    document.getElementById('viewCalendar').classList.add('d-none');
-    document.getElementById('viewProfile').classList.add('d-none');
+    ['viewLogin','mainLayout','viewDashboard','viewHistory','viewCalendar','viewProfile'].forEach(id => {
+        const el = document.getElementById(id); if(el) el.classList.add('d-none');
+    });
 
     if(v === 'login') {
         document.getElementById('viewLogin').classList.remove('d-none');
@@ -598,7 +679,7 @@ function switchView(v) {
         document.getElementById('mainLayout').classList.remove('d-none');
         if(v === 'dashboard') document.getElementById('viewDashboard').classList.remove('d-none');
         else if(v === 'history') document.getElementById('viewHistory').classList.remove('d-none');
-        else if(v === 'calendar') document.getElementById('viewCalendar').classList.remove('d-none');
+        else if(v === 'calendar') { document.getElementById('viewCalendar').classList.remove('d-none'); setTimeout(renderCalendar, 50); }
         else if(v === 'profile') document.getElementById('viewProfile').classList.remove('d-none');
         updateActiveNav(v);
     }
@@ -608,147 +689,75 @@ function updateActiveNav(viewName) {
     const allNavs = document.querySelectorAll('.nav-link-desk, .mob-item');
     allNavs.forEach(el => el.classList.remove('active'));
 
-    if (viewName === 'dashboard') {
-        if(document.getElementById('deskNavDash')) document.getElementById('deskNavDash').classList.add('active');
-        if(document.getElementById('mobNavDash')) document.getElementById('mobNavDash').classList.add('active');
-    } 
-    else if (viewName === 'history') {
-        if(document.getElementById('deskNavHist')) document.getElementById('deskNavHist').classList.add('active');
-        if(document.getElementById('mobNavHist')) document.getElementById('mobNavHist').classList.add('active');
-    } 
-    else if (viewName === 'calendar') {
-        if(document.getElementById('deskNavCal')) document.getElementById('deskNavCal').classList.add('active');
-        if(document.getElementById('mobNavCal')) document.getElementById('mobNavCal').classList.add('active');
-    }
-    else if (viewName === 'profile') { 
-        if(document.getElementById('deskNavProf')) document.getElementById('deskNavProf').classList.add('active');
-        if(document.getElementById('mobNavProf')) document.getElementById('mobNavProf').classList.add('active');
-    }
-}
+    let deskId = '', mobId = '';
+    if (viewName === 'dashboard') { deskId = 'deskNavDash'; mobId = 'mobNavDash'; }
+    else if (viewName === 'history') { deskId = 'deskNavHist'; mobId = 'mobNavHist'; }
+    else if (viewName === 'calendar') { deskId = 'deskNavCal'; mobId = 'mobNavCal'; }
+    else if (viewName === 'profile') { deskId = 'deskNavProf'; mobId = 'mobNavProf'; }
 
-// ==========================================
-// 7. CALENDAR LOGIC (UPDATED)
-// ==========================================
-
-function renderCalendar() {
-    const year = currentCalendarDate.getFullYear();
-    const month = currentCalendarDate.getMonth();
-    
-    // Set Judul
-    const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-    document.getElementById('calendarTitle').innerText = `${monthNames[month]} ${year}`;
-
-    // Hitung tanggal
-    const firstDay = new Date(year, month, 1).getDay(); 
-    const daysInMonth = new Date(year, month + 1, 0).getDate(); 
-    
-    const currentRealDate = getAppTime(); 
-    const isCurrentMonth = currentRealDate.getMonth() === month && currentRealDate.getFullYear() === year;
-
-    let html = '';
-    let holidaysInMonth = []; // Array untuk menampung libur bulan ini
-
-    // Sel Kosong
-    for (let i = 0; i < firstDay; i++) {
-        html += `<div class="calendar-day faded"></div>`;
-    }
-
-    // Sel Tanggal (1 - 31)
-    for (let day = 1; day <= daysInMonth; day++) {
-        const currentCheck = new Date(year, month, day);
-        const dayOfWeek = currentCheck.getDay();
-        
-        // Format Key YYYY-MM-DD
-        const monthStr = (month + 1).toString().padStart(2, '0');
-        const dayStr = day.toString().padStart(2, '0');
-        const dateKey = `${year}-${monthStr}-${dayStr}`;
-
-        // Cek Libur di Database
-        const holidayInfo = HOLIDAYS_2026[dateKey];
-        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-        let classes = 'calendar-day';
-        
-        if (holidayInfo) {
-            // Simpan info libur untuk ditampilkan di bawah
-            holidaysInMonth.push({ date: day, name: holidayInfo.name, type: holidayInfo.type });
-
-            if (holidayInfo.type === 'nasional') {
-                classes += ' text-danger fw-bold'; 
-            } else {
-                classes += ' text-warning fw-bold'; 
-            }
-        } else if (isWeekend) {
-            classes += ' text-danger'; 
-        }
-
-        if (isCurrentMonth && day === currentRealDate.getDate()) {
-            classes += ' today'; 
-            if (holidayInfo || isWeekend) classes = classes.replace('text-danger', 'text-white').replace('text-warning', 'text-white');
-        }
-
-        // Dot Hadir
-        const rawDate = currentCheck.toDateString();
-        const record = JSON.parse(localStorage.getItem(STORAGE_KEY_DATA) || '[]')
-            .find(r => r.username === activeUser.username && r.rawDate === rawDate);
-        
-        let dotHtml = '';
-        if (record) {
-            dotHtml = `<div style="height:4px; width:4px; background-color:#10b981; border-radius:50%; margin-top:2px;"></div>`;
-        }
-
-        html += `
-        <div class="${classes}">
-            <div class="d-flex flex-column align-items-center justify-content-center" style="height: 100%; width: 100%;">
-                ${day}
-                ${dotHtml}
-            </div>
-        </div>`;
-    }
-
-    document.getElementById('calendarGrid').innerHTML = html;
-
-    // --- RENDER DAFTAR LIBUR DI BAWAH KALENDER ---
-    let holidayHtml = '';
-    if (holidaysInMonth.length > 0) {
-        holidayHtml += `<h6 class="small text-muted fw-bold ps-2 mb-2">Libur Nasional dan Cuti Bersama:</h6>`;
-        holidaysInMonth.forEach(h => {
-            const badgeColor = h.type === 'nasional' ? 'bg-danger' : 'bg-warning text-dark';
-            const typeLabel = h.type === 'nasional' ? 'Nasional' : 'Cuti Bersama';
-            
-            holidayHtml += `
-            <div class="d-flex align-items-start gap-3 bg-white p-3 rounded-4 shadow-sm border-0">
-                <div class="d-flex flex-column align-items-center justify-content-center bg-light rounded-3" style="width: 50px; height: 50px;">
-                    <span class="fw-bold text-dark fs-5 mb-0" style="line-height:1;">${h.date}</span>
-                    <small class="text-muted" style="font-size: 0.6rem;">${monthNames[month].substr(0,3)}</small>
-                </div>
-                <div>
-                    <h6 class="fw-bold text-dark mb-1" style="font-size: 0.85rem;">${h.name}</h6>
-                    <span class="badge ${badgeColor} rounded-pill" style="font-size: 0.65rem;">${typeLabel}</span>
-                </div>
-            </div>`;
-        });
-    }
-    document.getElementById('holidayList').innerHTML = holidayHtml;
-}
-
-function changeMonth(step) {
-    currentCalendarDate.setMonth(currentCalendarDate.getMonth() + step);
-    renderCalendar();
+    if(deskId && document.getElementById(deskId)) document.getElementById(deskId).classList.add('active');
+    if(mobId && document.getElementById(mobId)) document.getElementById(mobId).classList.add('active');
 }
 
 function showAppModal(t, m, type='success') {
-    const w = document.getElementById('modalIconBg');
-    const iconEl = document.getElementById('modalIcon'); 
     document.getElementById('modalTitle').innerText = t;
     document.getElementById('modalMessage').innerHTML = m;
-    w.style.background = type === 'error' ? '#fee2e2' : '#e0f2fe';
-    w.style.color = type === 'error' ? '#ef4444' : '#0ea5e9';
-    if (type === 'error') iconEl.className = 'fas fa-times';
-    else iconEl.className = 'fas fa-check';
+    const icon = document.getElementById('modalIcon');
+    const bg = document.getElementById('modalIconBg');
+    
+    if (type === 'error') {
+        icon.className = 'fas fa-times';
+        bg.style.background = '#fee2e2'; bg.style.color = '#ef4444';
+    } else if (type === 'warning') { 
+        icon.className = 'fas fa-exclamation-triangle';
+        bg.style.background = '#fef3c7'; bg.style.color = '#d97706';
+    } else {
+        icon.className = 'fas fa-check'; 
+        bg.style.background = '#e0f2fe'; bg.style.color = '#0ea5e9';
+    }
     document.getElementById('appModal').classList.remove('d-none');
 }
 function closeAppModal() { document.getElementById('appModal').classList.add('d-none'); }
+
+function handleNotificationClick() { showAppModal("Notifikasi", currentNotifMessage); }
+function handleLogout() { document.getElementById('logoutModal').classList.remove('d-none'); }
+function closeLogoutModal() { document.getElementById('logoutModal').classList.add('d-none'); }
+
+async function confirmLogout() { 
+    closeLogoutModal(); 
+    await new Promise(r => setTimeout(r, 200)); 
+    showAppModal("Memproses", "Sedang logout...", "info");
+    await new Promise(r => setTimeout(r, 1500)); 
+
+    try {
+        const token = localStorage.getItem(STORAGE_KEY_TOKEN);
+        if (token) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000); 
+
+            await fetch(`${API_BASE_URL}/logout.php`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+        }
+    } catch(e) { console.log("Logout server failed/skipped, force local logout"); }
+    
+    forceLocalLogout();
+}
+
+function forceLocalLogout() {
+    localStorage.removeItem(STORAGE_KEY_USER); 
+    localStorage.removeItem(STORAGE_KEY_TOKEN); 
+    location.reload(); 
+}
+
+function logout() { document.getElementById('logoutModal').classList.remove('d-none'); }
+
+// --- EXPOSE FUNCTION KE GLOBAL ---
+window.changeMonth = changeMonth;
+window.showHolidayInfo = showHolidayInfo;
 
 if (window.cordova) document.addEventListener('deviceready', onAppReady, false);
 else document.addEventListener('DOMContentLoaded', onAppReady);

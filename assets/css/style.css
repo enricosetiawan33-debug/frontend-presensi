@@ -384,8 +384,37 @@ body {
 .icon-box { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; }
 .bg-success-soft { background: rgba(255,255,255,0.2); color: #bbf7d0; }
 .bg-danger-soft { background: rgba(255,255,255,0.2); color: #fecaca; }
-.bubble { width: 28px; height: 28px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.75rem; }
-.bubble.active { background: white; color: var(--primary); }
+/* Container agar bola berjejer ke samping kanan */
+#weeklyBubbles {
+    display: flex;
+    justify-content: flex-end; /* Rata kanan */
+    gap: 6px; /* Jarak antar bola */
+    min-height: 35px; /* Paksa container punya tinggi */
+    align-items: center;
+}
+
+/* Style Bubble Dasar */
+.bubble {
+    width: 30px; 
+    height: 30px;
+    /* Beri background semi-transparan putih agar terlihat di background biru */
+    background: rgba(255, 255, 255, 0.2); 
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+}
+
+/* Style Bubble Aktif */
+.bubble.active {
+    background: #ffffff;
+    color: #0ea5e9; /* Warna biru icon */
+    border: none;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
 .hist-item-gradient { background: linear-gradient(90deg, #38bdf8 0%, #0ea5e9 100%); color: white; border-radius: 16px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 10px rgba(56, 189, 248, 0.2); }
 .badge-kdk { background: #f59e0b; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; }
 .badge-kdm { background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; }

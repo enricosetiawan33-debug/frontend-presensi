@@ -5,23 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>E-Presensi Kemendikdasmen</title>
     <link rel="icon" type="image/png" href="assets/images/logo.png">
-    <meta http-equiv="Content-Security-Policy" content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: gap: content:;">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
 
     <div id="viewLoading" class="loading-overlay d-none">
-    
         <div class="loading-box-center">
             <div class="spinner-ring"></div>
-            
             <div class="loading-percentage" id="loadingPercent">0%</div>
         </div>
-        
         <p class="loading-text">Memuat Data...</p>
     </div>
 
@@ -31,12 +26,10 @@
                 <img src="assets/images/logo.png" alt="Logo" class="login-logo mb-3">
                 <h5 class="fw-bold" style="color: #0088CC;">Kemen<span class="text-warning">dikdasmen</span></h5>
             </div>
-            
             <div class="text-center mb-5">
                 <h3 class="fw-bold text-dark mb-1">Selamat Datang</h3>
                 <p class="text-muted small">Silahkan masuk untuk melakukan presensi</p>
             </div>
-
             <form id="loginForm">
                 <div class="mb-3">
                     <input type="email" class="form-control custom-input" id="inputUser" placeholder="Username" required>
@@ -44,39 +37,28 @@
                 <div class="mb-4">
                     <input type="password" class="form-control custom-input" id="inputPass" placeholder="Password" required>
                 </div>
-                <button type="submit" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm btn-gradient">
-                    MASUK
-                </button>
+                <button type="submit" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm btn-gradient">MASUK</button>
             </form>
         </div>
     </div>
 
     <div id="mainLayout" class="d-none">
-        
         <nav class="desktop-navbar desktop-view">
             <div class="nav-container">
                 <div class="d-flex align-items-center gap-3">
                     <img src="assets/images/logo.png" alt="Logo" style="width: 45px;">
-                    <div class="d-flex flex-column lh-1">
-                        <span class="fw-bold text-primary fs-5">E-Presensi</span>
-                    </div>
+                    <span class="fw-bold text-primary fs-5">E-Presensi</span>
                 </div>
-
                 <div class="nav-links d-flex gap-4">
                     <a href="#" id="deskNavDash" class="nav-link-desk active" onclick="switchView('dashboard')">Home</a>
-                    
                     <a href="#" id="deskNavHist" class="nav-link-desk" onclick="switchView('history')">Presensi</a>
-                    
                     <a href="#" id="deskNavCal" class="nav-link-desk" onclick="switchView('calendar')">Kalender</a>
-                    
                     <a href="#" id="deskNavProf" class="nav-link-desk" onclick="switchView('profile')">Profil</a>
                 </div>
-
                 <div class="d-flex align-items-center gap-4">
                     <i class="far fa-bell fa-lg text-secondary position-relative cursor-pointer" onclick="handleNotificationClick()">
                         <span id="deskNotifBadge" class="notif-badge position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle d-none"></span>
                     </i>
-                    
                     <div class="avatar-circle bg-primary text-white d-flex align-items-center justify-content-center shadow-sm fw-bold">
                         <span class="user-initials">ME</span>
                     </div>
@@ -86,7 +68,6 @@
 
         <main class="main-content">
             <div id="viewDashboard" class="container content-container animate-fade-in">
-                
                 <div class="desktop-view flex-column mb-4 pt-2">
                     <h1 class="fw-bold text-dark mb-1">Halo, <span class="user-fullname-text">User</span>!</h1>
                     <p class="text-muted mb-0" id="deskHeaderDate">Memuat Tanggal...</p>
@@ -102,37 +83,40 @@
                             <div class="mt-1 text-primary d-flex align-items-center gap-2" style="font-size: 0.65rem;">
                                 <i class="fas fa-map-marker-alt"></i> 
                                 <span class="locationTextShort">Mencari lokasi...</span>
-                                <i class="fas fa-sync-alt cursor-pointer text-secondary" onclick="refreshLocation()" title="Refresh Lokasi"></i>
+                                <i class="fas fa-sync-alt cursor-pointer text-secondary" onclick="refreshLocation()" title="Refresh"></i>
                             </div>
                         </div>
                     </div>
-                
                     <div class="d-flex align-items-center gap-3">
                         <i class="far fa-bell fa-lg text-secondary position-relative" onclick="handleNotificationClick()">
                             <span id="mobNotifBadge" class="notif-badge position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle d-none"></span>
                         </i>
-                        
-                        </div>
+                    </div>
                 </div>
 
                 <div class="card card-date-gradient mb-4 text-white border-0 position-relative overflow-hidden">
                     <div class="card-body p-4 position-relative z-1">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
+                        
+                        <div class="d-flex justify-content-between align-items-center mb-2">
                             <div class="d-flex align-items-center gap-3">
                                 <h1 class="date-big-num m-0" id="dashDateNum">--</h1>
-                                
                                 <div class="d-flex flex-column justify-content-center date-text-group">
                                     <h3 class="fw-bold m-0" id="dashDateDay">...</h3>
                                     <span class="opacity-75" id="dashDateMonth">...</span>
                                 </div>
                             </div>
-                
                             <button class="btn btn-light rounded-circle text-primary shadow-sm" onclick="switchView('history')">
                                 <i class="fas fa-chevron-right"></i>
                             </button>
                         </div>
+
+                        <div class="mb-4">
+                            <h1 id="liveServerClock" class="fw-bold m-0 display-4" style="letter-spacing: 2px; text-shadow: 0 4px 10px rgba(0,0,0,0.2);">
+                                --:--:--
+                            </h1>
+                        </div>
                 
-                        <div class="row mt-3 align-items-end">
+                        <div class="row mt-2 align-items-end">
                              <div class="col-6">
                                 <div class="d-flex flex-column gap-2">
                                     <div class="d-flex align-items-center gap-2">
@@ -145,15 +129,11 @@
                                     </div>
                                 </div>
                             </div>
+                            
                             <div class="col-6 text-end">
                                 <small class="d-block mb-1 opacity-75 small">Status Minggu Ini</small>
                                 <div class="d-flex justify-content-end gap-1" id="weeklyBubbles">
-                                    <div class="bubble active"><i class="fas fa-check"></i></div>
-                                    <div class="bubble"></div>
-                                    <div class="bubble"></div>
-                                    <div class="bubble"></div>
-                                    <div class="bubble"></div>
-                                </div>
+                                    </div>
                             </div>
                         </div>
                     </div>
@@ -162,18 +142,14 @@
                 <div class="card border-0 shadow-sm mb-4 bg-primary text-white rounded-4">
                     <div class="card-body py-3">
                         <div class="row text-center position-relative">
-                            
                             <div class="col-6">
                                 <h2 class="fw-bold m-0" id="countKDK">0</h2>
                                 <small class="fw-bold opacity-75">KDK</small>
                             </div>
-                
                             <div class="col-6 border-start border-white border-opacity-25">
-                                
                                 <h2 class="fw-bold m-0" id="countKDM">0</h2>
                                 <small class="fw-bold opacity-75">KDM</small>
                             </div>
-                            
                         </div>
                     </div>
                 </div>
@@ -183,7 +159,6 @@
 
             <div id="viewHistory" class="container content-container d-none pt-4">
                 <h5 class="fw-bold mb-3">Data Presensi</h5>
-                
                 <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -191,11 +166,8 @@
                                 <thead class="bg-light text-muted small">
                                     <tr class="align-middle">
                                         <th style="width: 35%;" class="ps-4 py-3">TANGGAL</th>
-                                        
                                         <th style="width: 20%;" class="text-start ps-2 py-3">STATUS</th>
-                                        
                                         <th style="width: 22.5%;" class="text-start ps-2 py-3">MASUK</th>
-                                        
                                         <th style="width: 22.5%;" class="text-start ps-2 py-3">KELUAR</th>
                                     </tr>
                                 </thead>
@@ -208,7 +180,6 @@
             
             <div id="viewCalendar" class="container content-container d-none pt-4">
                 <h5 class="fw-bold mb-3">Kalender Kerja</h5>
-                
                 <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white mb-3">
                     <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
                         <button class="btn btn-light rounded-circle shadow-sm text-primary" onclick="changeMonth(-1)">
@@ -229,12 +200,8 @@
                             <span class="text-muted small fw-bold">Jum</span>
                             <span class="text-muted small fw-bold text-danger">Sab</span>
                         </div>
-                        
-                        <div id="calendarGrid" class="d-grid text-center" style="grid-template-columns: repeat(7, 1fr); gap: 8px;">
-                            </div>
-
+                        <div id="calendarGrid" class="d-grid text-center" style="grid-template-columns: repeat(7, 1fr); gap: 8px;"></div>
                         <hr class="my-3 border-light">
-
                         <div class="d-flex justify-content-center gap-3">
                             <div class="d-flex align-items-center gap-2">
                                 <div style="width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%;"></div>
@@ -251,89 +218,57 @@
                         </div>
                     </div>
                 </div>
-
-                <div id="holidayList" class="d-flex flex-column gap-2 pb-5">
-                    </div>
+                <div id="holidayList" class="d-flex flex-column gap-2 pb-5"></div>
             </div>
 
             <div id="viewProfile" class="container content-container d-none pt-4">
                 <h5 class="fw-bold mb-3">Profil Pegawai</h5>
-                
                 <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
                     <div class="card-body p-4">
                         <div class="row align-items-center">
-                            
                             <div class="col-md-3 text-center mb-4 mb-md-0">
                                 <div class="profile-avatar-lg mx-auto d-flex align-items-center justify-content-center shadow-sm text-white fw-bold mb-3">
                                     <span class="fs-1" id="profInitials">ME</span>
                                 </div>
                                 <span class="badge bg-primary rounded-pill px-3 py-2" id="profStatus">PNS</span>
                             </div>
-            
                             <div class="col-md-9">
                                 <div class="row g-3">
                                     <div class="col-12">
                                         <small class="text-muted d-block fw-medium">Nama Lengkap</small>
                                         <h5 class="fw-bold text-dark m-0" id="profName">...</h5>
                                     </div>
-            
                                     <div class="col-12">
                                         <small class="text-muted d-block fw-medium">NIP</small>
                                         <span class="fw-semibold text-dark" id="profNIP">...</span>
                                     </div>
-                                    
                                     <div class="col-12">
                                         <small class="text-muted d-block fw-medium">Tempat, Tanggal Lahir</small>
                                         <span class="fw-semibold text-dark" id="profTTL">...</span>
                                     </div>
-            
                                     <div class="col-12">
                                         <small class="text-muted d-block fw-medium">Alamat Domisili</small>
                                         <span class="fw-semibold text-dark" id="profAddress">...</span>
                                     </div>
                                 </div>
                             </div>
-            
                         </div>
                     </div>
                 </div>
-                
-                <button class="btn btn-danger w-100 mt-4 rounded-pill py-3 fw-bold" onclick="handleLogout()">
-                    KELUAR
-                </button>
+                <button class="btn btn-danger w-100 mt-4 rounded-pill py-3 fw-bold" onclick="handleLogout()">KELUAR</button>
             </div>
         </main>
 
         <nav class="mobile-navbar">
-    
             <div class="fab-container">
-                <button class="fab-btn" id="btnAbsen">
-                    <i class="fas fa-fingerprint"></i>
-                </button>
+                <button class="fab-btn" id="btnAbsen"><i class="fas fa-fingerprint"></i></button>
             </div>
-        
             <div class="nav-curve-bg">
-                <a href="#" class="mob-item active" id="mobNavDash" onclick="switchView('dashboard')">
-                    <i class="fas fa-home"></i> 
-                    <span>Home</span>
-                </a>
-                
-                <a href="#" class="mob-item" id="mobNavHist" onclick="switchView('history')">
-                    <i class="fas fa-calendar-check"></i> 
-                    <span>Presensi</span>
-                </a>
-        
+                <a href="#" class="mob-item active" id="mobNavDash" onclick="switchView('dashboard')"><i class="fas fa-home"></i><span>Home</span></a>
+                <a href="#" class="mob-item" id="mobNavHist" onclick="switchView('history')"><i class="fas fa-calendar-check"></i><span>Presensi</span></a>
                 <div style="width: 100%;"></div>
-        
-                <a href="#" class="mob-item" id="mobNavCal" onclick="switchView('calendar')">
-                    <i class="far fa-calendar-alt"></i> 
-                    <span>Kalender</span>
-                </a>
-        
-                <a href="#" class="mob-item" id="mobNavProf" onclick="switchView('profile')">
-                    <i class="far fa-user"></i> 
-                    <span>Profil</span>
-                </a>
+                <a href="#" class="mob-item" id="mobNavCal" onclick="switchView('calendar')"><i class="far fa-calendar-alt"></i><span>Kalender</span></a>
+                <a href="#" class="mob-item" id="mobNavProf" onclick="switchView('profile')"><i class="far fa-user"></i><span>Profil</span></a>
             </div>
         </nav>
     </div>
@@ -349,25 +284,16 @@
 
     <div id="logoutModal" class="custom-modal-overlay d-none">
         <div class="custom-modal-box text-center">
-            <div class="modal-icon-wrapper" style="background: #fee2e2; color: #ef4444;">
-                <i class="fas fa-power-off"></i>
-            </div>
-            
+            <div class="modal-icon-wrapper" style="background: #fee2e2; color: #ef4444;"><i class="fas fa-power-off"></i></div>
             <h5 class="fw-bold mt-3">Konfirmasi</h5>
             <p class="text-muted small mb-4">Apakah Anda yakin ingin keluar dari aplikasi?</p>
-            
             <div class="d-flex gap-2 justify-content-center">
-                <button onclick="closeLogoutModal()" class="btn btn-light w-50 rounded-pill fw-bold text-secondary">
-                    Batal
-                </button>
-                <button onclick="confirmLogout()" class="btn btn-danger w-50 rounded-pill fw-bold shadow-sm">
-                    Ya, Keluar
-                </button>
+                <button onclick="closeLogoutModal()" class="btn btn-light w-50 rounded-pill fw-bold text-secondary">Batal</button>
+                <button onclick="confirmLogout()" class="btn btn-danger w-50 rounded-pill fw-bold shadow-sm">Ya, Keluar</button>
             </div>
         </div>
     </div>
-
-    <script src="cordova.js"></script>
+    
     <script src="assets/js/index.js"></script>
 </body>
 </html>
